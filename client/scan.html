@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WhatsApp Bot — Scan QR</title>
+    <!-- QR renderer via CDN — tidak perlu install apapun -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:       #080c08;
+            --surface:  #0f140f;
+            --border:   #1a2a1a;
+            --green:    #4ade80;
+            --glow:     rgba(74,222,128,.18);
+            --yellow:   #fbbf24;
+            --muted:    #4b5563;
+            --text:     #d1fae5;
+        }
+
+        body {
+            min-height: 100dvh;
+            background: var(--bg);
+            background-image:
+                radial-gradient(ellipse 60% 40% at 50% 0%, rgba(74,222,128,.06), transparent),
+                linear-gradient(rgba(74,222,128,.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(74,222,128,.025) 1px, transparent 1px);
+            background-size: 100% 100%, 28px 28px, 28px 28px;
+            color: var(--text);
+            font-family: 'Syne', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 20px;
+            gap: 32px;
+        }
+
+        /* ── Header ─────────────────── */
+        header { text-align: center; }
+        .logo-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+        .wa-icon {
+            width: 28px; height: 28px;
+            fill: var(--green);
+            filter: drop-shadow(0 0 8px var(--green));
+        }
+        header h1 {
+            font-size: clamp(1.3rem, 5vw, 1.9rem);
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -.03em;
+        }
+        header p {
+            font-family: 'DM Mono', monospace;
+            font-size: .68rem;
+            color: var(--muted);
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        /* ── Card ───────────────────── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 32px 28px;
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+            box-shadow:
+                0 0 0 1px var(--glow),
+                0 32px 80px rgba(0,0,0,.7);
+            position: relative;
+            overflow: hidden;
+        }
+        .card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(74,222,128,.05), transparent 60%);
+            pointer-events: none;
+        }
+
+        /* ── Badge ──────────────────── */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 14px;
+            border-radius: 99px;
+            font-family: 'DM Mono', monospace;
+            font-size: .68rem;
+            font-weight: 500;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            border: 1px solid;
+            transition: all .4s ease;
+        }
+        .badge.disconnected { color: var(--muted); border-color: #222; background: #111; }
+        .badge.qr           { color: var(--yellow); border-color: #332b00; background: #1a1500; }
+        .badge.connected    { color: var(--green);  border-color: #1a3a1a; background: #091409; }
+
+        .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+        .dot.blink { animation: blink 1.3s ease-in-out infinite; }
+        @keyframes blink { 0%,100%{opacity:1}50%{opacity:.25} }
+
+        /* ── QR Box ─────────────────── */
+        .qr-box {
+            width: 236px; height: 236px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            border: 2px solid var(--border);
+            position: relative;
+            overflow: hidden;
+            transition: border-color .4s, box-shadow .4s;
+        }
+        .qr-box.active {
+            border-color: var(--green);
+            box-shadow: 0 0 0 4px rgba(74,222,128,.12), 0 0 32px rgba(74,222,128,.1);
+        }
+
+        /* scan line */
+        .qr-box.active::after {
+            content: '';
+            position: absolute;
+            left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent 0%, var(--green) 50%, transparent 100%);
+            box-shadow: 0 0 10px var(--green);
+            animation: sweep 2s linear infinite;
+        }
+        @keyframes sweep { from{top:0} to{top:100%} }
+
+        /* QR library injects a canvas or img inside #qrCanvas */
+        #qrCanvas { display: flex; align-items: center; justify-content: center; }
+        #qrCanvas canvas, #qrCanvas img { width: 210px !important; height: 210px !important; display: block; }
+
+        /* states inside qr-box */
+        .state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            color: #9ca3af;
+            font-family: 'DM Mono', monospace;
+            font-size: .7rem;
+            text-align: center;
+            padding: 20px;
+        }
+        .spinner {
+            width: 32px; height: 32px;
+            border: 2.5px solid var(--border);
+            border-top-color: var(--green);
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Steps ──────────────────── */
+        .steps { width: 100%; display: flex; flex-direction: column; gap: 9px; }
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 11px;
+            font-size: .8rem;
+            color: var(--muted);
+            line-height: 1.5;
+            transition: color .3s;
+        }
+        .step.on { color: #e5e7eb; }
+        .num {
+            width: 20px; height: 20px;
+            min-width: 20px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'DM Mono', monospace;
+            font-size: .6rem;
+            transition: all .3s;
+        }
+        .step.on .num { background: var(--green); border-color: var(--green); color: #000; font-weight: 600; }
+
+
+        /* ── Logout button ──────────────── */
+        .btn-logout {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 20px;
+            border-radius: 10px;
+            font-family: 'DM Mono', monospace;
+            font-size: .72rem;
+            font-weight: 500;
+            letter-spacing: .06em;
+            cursor: pointer;
+            border: 1px solid #3f1515;
+            background: #1a0a0a;
+            color: #f87171;
+            transition: all .2s ease;
+            width: 100%;
+            justify-content: center;
+        }
+        .btn-logout:hover:not(:disabled) {
+            background: #2a0f0f;
+            border-color: #f87171;
+            box-shadow: 0 0 14px rgba(248,113,113,.15);
+        }
+        .btn-logout:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+        }
+        .btn-logout.loading {
+            color: #6b7280;
+            border-color: #222;
+            background: #111;
+        }
+
+        /* ── Confirm overlay ────────────── */
+        .overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.75);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .overlay.show { display: flex; animation: fadeIn .2s ease; }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        .confirm-box {
+            background: #0f140f;
+            border: 1px solid #2a1a1a;
+            border-radius: 18px;
+            padding: 28px 24px;
+            max-width: 320px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 0 0 1px rgba(248,113,113,.1), 0 24px 60px rgba(0,0,0,.8);
+        }
+        .confirm-box .icon { font-size: 2.4rem; margin-bottom: 12px; }
+        .confirm-box h3 { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+        .confirm-box p  { font-family: 'DM Mono', monospace; font-size: .68rem; color: #6b7280; line-height: 1.6; margin-bottom: 20px; }
+        .confirm-btns { display: flex; gap: 10px; }
+        .confirm-btns button {
+            flex: 1;
+            padding: 9px;
+            border-radius: 9px;
+            font-family: 'DM Mono', monospace;
+            font-size: .72rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid;
+            transition: all .2s;
+        }
+        .btn-cancel  { background: #111; border-color: #222; color: #9ca3af; }
+        .btn-cancel:hover  { background: #1a1a1a; border-color: #374151; color: #fff; }
+        .btn-confirm { background: #2a0f0f; border-color: #f87171; color: #f87171; }
+        .btn-confirm:hover { background: #3f1515; }
+
+        /* ── Footer ─────────────────── */
+        footer {
+            font-family: 'DM Mono', monospace;
+            font-size: .6rem;
+            color: #1f2937;
+            letter-spacing: .07em;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo-row">
+        <svg class="wa-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+        </svg>
+        <h1>WhatsApp Bot</h1>
+    </div>
+    <p>QR Scanner — Live</p>
+    <p>Developed by Andri Efendy</p>
+</header>
+
+<div class="card">
+    <div class="badge disconnected" id="badge">
+        <span class="dot blink" id="dot"></span>
+        <span id="badgeText">Menghubungkan...</span>
+    </div>
+
+    <div class="qr-box" id="qrBox">
+        <div class="state" id="stateView">
+            <div class="spinner"></div>
+            <span id="stateText">Menunggu server...</span>
+        </div>
+        <div id="qrCanvas" style="display:none;"></div>
+    </div>
+
+    <div class="steps" id="steps">
+        <div class="step" id="s1"><div class="num">1</div><span>Buka WhatsApp di HP kamu</span></div>
+        <div class="step" id="s2"><div class="num">2</div><span>Ketuk <strong>Perangkat Tertaut → Tautkan Perangkat</strong></span></div>
+        <div class="step" id="s3"><div class="num">3</div><span>Arahkan kamera HP ke QR code di atas</span></div>
+    </div>
+
+    <button class="btn-logout" id="btnLogout" style="display:none;" onclick="showConfirm()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Ganti Akun / Logout
+    </button>
+</div>
+
+<!-- Confirm modal -->
+<div class="overlay" id="overlay">
+    <div class="confirm-box">
+        <div class="icon">🔄</div>
+        <h3>Ganti Akun WhatsApp?</h3>
+        <p>Sesi saat ini akan dihapus.<br>Bot akan menampilkan QR baru untuk login akun lain.</p>
+        <div class="confirm-btns">
+            <button class="btn-cancel" onclick="hideConfirm()">Batal</button>
+            <button class="btn-confirm" onclick="doLogout()">Ya, Logout</button>
+        </div>
+    </div>
+</div>
+
+<footer>Polling setiap 2 detik · No socket required</footer>
+
+<script>
+    const badge     = document.getElementById('badge');
+    const dot       = document.getElementById('dot');
+    const badgeTxt  = document.getElementById('badgeText');
+    const qrBox     = document.getElementById('qrBox');
+    const stateView = document.getElementById('stateView');
+    const stateText = document.getElementById('stateText');
+    const qrCanvas  = document.getElementById('qrCanvas');
+    const steps     = document.getElementById('steps');
+    const s1 = document.getElementById('s1');
+    const s2 = document.getElementById('s2');
+    const s3 = document.getElementById('s3');
+
+    let lastQR = null;
+    let qrInstance = null;
+
+    function showState(html) {
+        stateView.innerHTML = html;
+        stateView.style.display = 'flex';
+        qrCanvas.style.display  = 'none';
+        qrBox.classList.remove('active');
+    }
+
+    function renderQR(qrString) {
+        stateView.style.display = 'none';
+        qrCanvas.style.display  = 'flex';
+        qrBox.classList.add('active');
+        qrCanvas.innerHTML = ''; // bersihkan QR lama
+        new QRCode(qrCanvas, {
+            text: qrString,
+            width: 210,
+            height: 210,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M
+        });
+    }
+
+    function applyStatus({ status, qr }) {
+        // Reset badge
+        badge.className = 'badge ' + status;
+
+        if (status === 'disconnected') {
+            dot.className = 'dot blink';
+            badgeTxt.textContent = 'Terputus';
+            showState('<div class="spinner"></div><span>Mencoba reconnect...</span>');
+            s1.className = 'step'; s2.className = 'step'; s3.className = 'step';
+            steps.style.display = '';
+        }
+
+        if (status === 'qr' && qr) {
+            dot.className = 'dot blink';
+            badgeTxt.textContent = 'Scan QR';
+            if (qr !== lastQR) {
+                lastQR = qr;
+                renderQR(qr);
+            }
+            s1.className = 'step on';
+            s2.className = 'step on';
+            s3.className = 'step on';
+            steps.style.display = '';
+        }
+
+        if (status === 'connected') {
+            dot.className = 'dot';
+            badgeTxt.textContent = 'Terhubung ✓';
+            lastQR = null;
+            showState(`
+                <div style="font-size:2.8rem;filter:drop-shadow(0 0 14px rgba(74,222,128,.7))">✅</div>
+                <div style="color:#4ade80;font-size:.9rem;font-weight:700;">Bot Aktif!</div>
+                <div style="color:#6b7280;font-size:.68rem;font-family:'DM Mono',monospace">WhatsApp berhasil terhubung</div>
+            `);
+            steps.style.display = 'none';
+        }
+    }
+
+    async function poll() {
+        try {
+            const res = await fetch('/api/status');
+            if (!res.ok) throw new Error('Server error');
+            const data = await res.json();
+            applyStatus(data);
+        } catch (e) {
+            badge.className = 'badge disconnected';
+            badgeTxt.textContent = 'Server Offline';
+            showState('<div style="font-size:1.8rem">⚠️</div><span>Tidak dapat menjangkau server</span>');
+        }
+    }
+
+    // Mulai polling
+    poll();
+    setInterval(poll, 2000);
+
+    // ── Logout ───────────────────────────────────────────────
+    const btnLogout = document.getElementById('btnLogout');
+    const overlay   = document.getElementById('overlay');
+
+    function showConfirm() { overlay.classList.add('show'); }
+    function hideConfirm() { overlay.classList.remove('show'); }
+
+    async function doLogout() {
+        hideConfirm();
+        btnLogout.disabled = true;
+        btnLogout.classList.add('loading');
+        btnLogout.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;margin:0"></div> Sedang logout...';
+
+        try {
+            const res = await fetch('/api/logout', { method: 'POST' });
+            const data = await res.json();
+            console.log('Logout:', data.message);
+        } catch (e) {
+            console.error('Logout gagal:', e);
+        }
+
+        // Reset UI — polling akan handle sisanya
+        btnLogout.style.display = 'none';
+        btnLogout.disabled = false;
+        btnLogout.classList.remove('loading');
+        btnLogout.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Ganti Akun / Logout`;
+    }
+
+    // Tampilkan/sembunyikan tombol logout berdasarkan status
+    const _origApply = applyStatus;
+    applyStatus = function(data) {
+        _origApply(data);
+        btnLogout.style.display = (data.status === 'connected') ? '' : 'none';
+    };
+</script>
+
+</body>
+</html>
