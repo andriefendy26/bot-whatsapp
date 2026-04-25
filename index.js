@@ -248,6 +248,24 @@ const SCHEDULED_MESSAGES = [
             '📌 Pesan otomatis dikirim oleh *Bot-PUSPA* 🤖',
     },
     {
+        name: 'Sistem Informasi Form',
+        cron: '45 11 * * 1-4',
+        timezone: 'Asia/Makassar',
+        targets: [
+            '6282255187877@s.whatsapp.net',
+            '120363407441452748@g.us',
+            '6285255232511-1478313137@g.us',
+        ],
+        message:
+             'Assalamualaikum,\n' +
+            'izin, Mohon bantuannya untuk mengisi Form Pendataan Sistem Informasi dengan ' +
+            'memasukkan nama,profesi dan mengisi frekuensi penggunaan aplikasi pada link berikut :\n' +
+            '📎 https://script.google.com/macros/s/AKfycbwedZaodNfH-kNUP-lhaLWrvdGkTWTDRa-LV6EOxS-_4rNmS_PyEylmWta79LImRWrcsw/exec\n\n' +
+            'daftar nama yang belum/sudah mengisi\n' +
+            'https://docs.google.com/spreadsheets/d/1Kpe1VSWhCTuiwVeXcHefFs-iD6Vt0mBYsUoO3bf272E/edit?gid=752893668#gid=752893668\n\n' +
+            '📌 Pesan otomatis dikirim oleh *Bot-PUSPA* 🤖',
+    },
+    {
         name: 'Capaian pengisian google form SKM (jumat)',
         cron: '30 10 * * 5-6',
         timezone: 'Asia/Makassar',
@@ -266,7 +284,7 @@ const SCHEDULED_MESSAGES = [
     },
     {
         name: 'Monitoring Pertemuan (jumat)',
-        cron: '30 10 * * 5-6',
+        cron: '31 10 * * 5-6',
         timezone: 'Asia/Makassar',
         targets: [
             '6282255187877@s.whatsapp.net',
@@ -279,6 +297,24 @@ const SCHEDULED_MESSAGES = [
             'Kesediaannya untuk mengisi Hasil Pertemuan, Kesepakatan/tindak lanjut dan batas waktu. Terima kasih 🙏.\n\n' +
             'spreadsheet monitoring:\n' +
             'https://docs.google.com/spreadsheets/d/1Upnvup9_cULZVPwh280H6qNta4iZIZ-ChyvVyeI0AHI/edit?gid=1914370244#gid=1914370244\n\n' +
+            '📌 Pesan otomatis dikirim oleh *Bot-PUSPA* 🤖',
+    },
+    {
+        name: 'Sistem Informasi Form (jumat)',
+        cron: '32 10 * * 5-6',
+        timezone: 'Asia/Makassar',
+        targets: [
+            '6282255187877@s.whatsapp.net',
+            '120363407441452748@g.us',
+            '6285255232511-1478313137@g.us',
+        ],
+        message:
+             'Assalamualaikum,\n' +
+            'izin, Mohon bantuannya untuk mengisi Form Pendataan Sistem Informasi dengan ' +
+            'memasukkan nama,profesi dan mengisi frekuensi penggunaan aplikasi pada link berikut :\n' +
+            '📎 https://script.google.com/macros/s/AKfycbwedZaodNfH-kNUP-lhaLWrvdGkTWTDRa-LV6EOxS-_4rNmS_PyEylmWta79LImRWrcsw/exec\n\n' +
+            'daftar nama yang belum/sudah mengisi\n' +
+            'https://docs.google.com/spreadsheets/d/1Kpe1VSWhCTuiwVeXcHefFs-iD6Vt0mBYsUoO3bf272E/edit?gid=752893668#gid=752893668\n\n' +
             '📌 Pesan otomatis dikirim oleh *Bot-PUSPA* 🤖',
     },
     {
@@ -413,7 +449,7 @@ async function getDataSKM() {
 async function startBot() {
     // ── GUARD: cegah multiple instance ────────────────────────
     if (isConnecting) {
-        console.log('⚠️  startBot dipanggil saat sudah connecting, diabaikan.');
+        console.log('⚠️ startBot dipanggil saat sudah connecting, diabaikan.');
         return;
     }
     isConnecting = true;
@@ -538,7 +574,8 @@ async function startBot() {
                 '*#ping* untuk tes apakah bot masih aktif\n' +
                 '*#skm* untuk laporan pengisian google form SKM\n' +
                 '*#monitor* untuk link monitoring pertemuan\n' +
-                '*#laporan* untuk link laporan bulanan\n\n' +
+                '*#laporan* untuk link laporan bulanan\n' +
+                '*#siform* untuk link form pendataan sistem informasi\n' +
                 '*#pantun* untuk mendapatkan pantun harian\n\n' +
                 '📌 Pesan otomatis dikirim oleh *Bot-PUSPA* 🤖'
             );
@@ -547,7 +584,8 @@ async function startBot() {
                 'Hidup!\n\n' +
                 '📌 Pesan otomatis dikirim oleh *Bot-PUSPA* 🤖'
             );
-        } else if (cmd === '#monitor') {
+        } 
+        else if (cmd === '#monitor') {
             await sendMessage(from,
                 'Izin mengirimkan link monitoring pertemuan:\n\n' +
                 '📎 https://docs.google.com/forms/d/e/1FAIpQLSfWi4KwZqbqZQIdbIo0Tkj3O27ypAs5CmzFMMExS5GBGKPlpA/viewform?usp=publish-editor\n' +
@@ -556,7 +594,19 @@ async function startBot() {
                 'https://docs.google.com/spreadsheets/d/1Upnvup9_cULZVPwh280H6qNta4iZIZ-ChyvVyeI0AHI/edit?gid=1914370244#gid=1914370244\n\n' +
                 '📌 Pesan otomatis dikirim oleh *Bot-PUSPA* 🤖'
             );
-        } else if (cmd === '#skm') {
+        }
+        else if (cmd === '#siform') {
+            await sendMessage(from,
+                'Assalamualaikum,\n' +
+                'izin, Mohon bantuannya untuk mengisi Form Pendataan Sistem Informasi dengan ' +
+                'memasukkan nama,profesi dan mengisi frekuensi penggunaan aplikasi pada link berikut :\n' +
+                '📎 https://script.google.com/macros/s/AKfycbwedZaodNfH-kNUP-lhaLWrvdGkTWTDRa-LV6EOxS-_4rNmS_PyEylmWta79LImRWrcsw/exec\n\n' +
+                'daftar nama yang belum/sudah mengisi\n' +
+                'https://docs.google.com/spreadsheets/d/1Kpe1VSWhCTuiwVeXcHefFs-iD6Vt0mBYsUoO3bf272E/edit?gid=752893668#gid=752893668\n\n' +
+                '📌 Pesan otomatis dikirim oleh *Bot-PUSPA* 🤖'
+            );
+        }
+         else if (cmd === '#skm') {
             const dataSKM = await getDataSKM();
             if (dataSKM.status === 'success' && dataSKM.data) {
                 await sendMessage(from, formatSKMMessage(dataSKM.data));
