@@ -364,33 +364,76 @@ app.get('/api/schedules', (req, res) => {
 //     msg += "📌 Pesan otomatis dikirim oleh *Bot-PUSPA* 🤖";
 //     return msg;
 // }
+// function formatSKMMessage(data) {
+//     let msg = "📊 *Laporan Pengisian Form SKM Hari Ini*\n\n";
+//     for (const [ruang, info] of Object.entries(data.data)) {
+//         msg += `🏥 ${ruang}\n`;
+//         msg += `Jumlah: ${info.Jumlah}  |  Target: ${info.Target}  |  Selisih: ${info.Selisih}  |  Capaian: ${info.Capaian}%\n`;
+//     }
+//     msg += "\n📈 *Laporan Kumulatif Pengisian Form SKM*\n\n";
+//     for (const [ruang, info] of Object.entries(data.dataKumulatif)) {
+//         msg += `🏥 ${ruang}\n`;
+//         msg += `Jumlah: ${info.Jumlah}  |  Target: ${info.Target}  |  Selisih: ${info.Selisih}  |  Capaian: ${info.Capaian.toFixed(0)}%\n`;
+//     }
+//     msg += "\n🔗 Link Dashboard SKM:\nhttps://docs.google.com/spreadsheets/d/1eG_dA_QBDKVolvXAzE3TjQJVzFi-sC3yoXHgcoZ-smY/edit?resourcekey=&pli=1&gid=494693158#gid=494693158\n";
+//     msg += "🔗 Link Google Form SKM:\nhttps://docs.google.com/forms/d/e/1FAIpQLSdKxQssBB1o4yGq00NiJL3FJ-nPNg2nDEO2M8ikC3NqUOQVFQ/viewform?usp=dialog\n\n";
+//     msg += "📌 Pesan otomatis dikirim oleh *Bot-PUSPA* 🤖";
+//     return msg;
+// }
 function formatSKMMessage(data) {
-    let msg = "📊 *Laporan Pengisian Form SKM Hari Ini*\n\n";
-    for (const [ruang, info] of Object.entries(data.data)) {
-        msg += `🏥 ${ruang}\n`;
-        msg += `Jumlah: ${info.Jumlah}  |  Target: ${info.Target}  |  Selisih: ${info.Selisih}  |  Capaian: ${info.Capaian}%\n`;
-    }
-    msg += "\n📈 *Laporan Kumulatif Pengisian Form SKM*\n\n";
-    for (const [ruang, info] of Object.entries(data.dataKumulatif)) {
-        msg += `🏥 ${ruang}\n`;
-        msg += `Jumlah: ${info.Jumlah}  |  Target: ${info.Target}  |  Selisih: ${info.Selisih}  |  Capaian: ${info.Capaian.toFixed(0)}%\n`;
-    }
+    // Helper function to generate report section for each ruang
+    const generateReportSection = (sectionData) => {
+        let sectionMsg = '';
+        for (const [ruang, info] of Object.entries(sectionData)) {
+            sectionMsg += `🏥 ${ruang}\n`;
+            sectionMsg += `Jumlah: ${info.Jumlah}  |  Target: ${info.Target}  |  Selisih: ${info.Selisih}  |  Capaian: ${info.Capaian.toFixed ? info.Capaian.toFixed(0) : info.Capaian}%\n`;
+        }
+        return sectionMsg;
+    };
+
+    // Build the final message
+    // let msg = "📊 *Laporan Pengisian Form SKM Hari Ini*\n\n";
+    // msg += generateReportSection(data.data);
+    let msg = "\n📈 *Laporan Kumulatif Pengisian Form SKM*\n\n";
+    msg += generateReportSection(data.dataKumulatif);
+
+    // Add links
     msg += "\n🔗 Link Dashboard SKM:\nhttps://docs.google.com/spreadsheets/d/1eG_dA_QBDKVolvXAzE3TjQJVzFi-sC3yoXHgcoZ-smY/edit?resourcekey=&pli=1&gid=494693158#gid=494693158\n";
     msg += "🔗 Link Google Form SKM:\nhttps://docs.google.com/forms/d/e/1FAIpQLSdKxQssBB1o4yGq00NiJL3FJ-nPNg2nDEO2M8ikC3NqUOQVFQ/viewform?usp=dialog\n\n";
     msg += "📌 Pesan otomatis dikirim oleh *Bot-PUSPA* 🤖";
+
     return msg;
 }
+
+// async function getDataSKM() {
+//     try {
+//         const response = await axios.get(
+//             'https://script.google.com/macros/s/AKfycbyJcJ4hXRB6QkI2T4m8KJkwR76kFfifBlIsSTce8EISdskwhe27FGfCiYYG5KRKWO-V/exec',
+//             { timeout: 10000 }
+//         );
+//         return { status: 'success', data: response.data, message: 'Data SKM berhasil diambil' };
+//     } catch (error) {
+//         console.error('Error fetching SKM data:', error.message);
+//         return { status: 'error', message: 'Gagal mengambil data SKM' };
+//     }
+// }
 
 async function getDataSKM() {
     try {
         const response = await axios.get(
             'https://script.google.com/macros/s/AKfycbyJcJ4hXRB6QkI2T4m8KJkwR76kFfifBlIsSTce8EISdskwhe27FGfCiYYG5KRKWO-V/exec',
-            { timeout: 10000 }
+            { 
+                timeout: 15000,
+                maxRedirects: 5,          // ← tambahkan ini
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (compatible; Bot/1.0)',  // ← dan ini
+                }
+            }
         );
-        return { status: 'success', data: response.data, message: 'Data SKM berhasil diambil' };
+        return { status: 'success', data: response.data };
     } catch (error) {
-        console.error('Error fetching SKM data:', error.message);
-        return { status: 'error', message: 'Gagal mengambil data SKM' };
+        console.error('Error fetching SKM:', error.message, error.code);
+        return { status: 'error', message: error.message };
     }
 }
 
@@ -557,7 +600,7 @@ async function startBot() {
                 const pantun = getPantunHariIni();
                 await sendMessage(from, `🌅 *Selamat Pagi!*\n\n_${pantun}_\n\n📌 Pesan otomatis dikirim oleh *Bot-PUSPA* 🤖`);
             } else if (cmd === '#versi') {
-                await sendMessage(from, 'Version: 1.0.5\n\n📌 Pesan otomatis dikirim oleh *Bot-PUSPA* 🤖');
+                await sendMessage(from, 'Version: 1.0.6\n\n📌 Pesan otomatis dikirim oleh *Bot-PUSPA* 🤖');
             }
         });
 
